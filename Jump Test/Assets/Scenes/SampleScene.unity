@@ -647,8 +647,10 @@ MonoBehaviour:
   airMultiplier: 0
   groundDrag: 0
   jumpForce: 5
+  somersaultForce: 50
   sprintKey: 304
   jumpKey: 32
+  somersaultKey: 101
   playerHeight: 2
   WhatIsGround:
     serializedVersion: 2

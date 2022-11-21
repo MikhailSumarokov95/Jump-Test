@@ -11,10 +11,12 @@ public class PlayerMovementController : MonoBehaviour
     [SerializeField] private float airMultiplier;
     public float groundDrag;
     [SerializeField] private float jumpForce;
+    [SerializeField] private float somersaultForce;
 
     [Header("Keybinds")]
     public KeyCode sprintKey = KeyCode.LeftShift;
     [SerializeField] private KeyCode jumpKey = KeyCode.Space;
+    [SerializeField] private KeyCode somersaultKey = KeyCode.LeftAlt;
 
     [Header("Ground Check")]
     public float playerHeight;
@@ -24,14 +26,13 @@ public class PlayerMovementController : MonoBehaviour
     public Transform orientation;
 
     [SerializeField] private float maxSlopeAngle;
-    [SerializeField] private bool exitingSlope;
 
     float horizontalInput;
     float verticalInput;
     private bool jumpInput;
+    private bool somersaultInput;
 
     Vector3 moveDirection;
-    //private float startYScale;
     private RaycastHit slopeHit;
 
     Rigidbody rb;
@@ -43,6 +44,7 @@ public class PlayerMovementController : MonoBehaviour
         walking,
         sprinting,
         jump,
+        somersault
     }
 
     // Start is called before the first frame update
@@ -50,8 +52,6 @@ public class PlayerMovementController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
-
-        //startYScale = transform.localScale.y;
     }
 
     // Update is called once per frame
@@ -63,14 +63,12 @@ public class PlayerMovementController : MonoBehaviour
         MyInput();
         SpeedControl();
         StateHandler();
-        Jump();
+        if (jumpInput) Jump();
+        if (somersaultInput) Somersault();
 
         //handle drag
-        if(grounded) rb.drag = groundDrag;
+        if (grounded) rb.drag = groundDrag;
         else rb.drag = 0;
-
-        print(state);
-        print(grounded);
     }
 
     private void FixedUpdate()
@@ -83,6 +81,7 @@ public class PlayerMovementController : MonoBehaviour
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
         jumpInput = Input.GetKeyDown(jumpKey);
+        somersaultInput = Input.GetKeyDown(somersaultKey);
     }
 
     private void StateHandler()
@@ -111,7 +110,7 @@ public class PlayerMovementController : MonoBehaviour
         moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
 
         //on slope
-        if (OnSlope() && !exitingSlope)
+        if (OnSlope())
         {
             rb.AddForce(GetSlopeMoveDirection() * moveSpeed * 20f, ForceMode.Force);
 
@@ -137,9 +136,25 @@ public class PlayerMovementController : MonoBehaviour
 
     private void Jump()
     {
-        if (jumpInput && grounded)
+        if (state != MovementState.jump && state != MovementState.somersault)
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        }
+    }
+
+    private void Somersault()
+    {
+       
+        if (state == MovementState.jump || state == MovementState.somersault) return;
+
+        else if (OnSlope())
+        {
+            rb.AddForce(GetSlopeSomersaultDirection() * 20f * somersaultForce, ForceMode.Impulse);
+        }
+
+        else
+        {
+            rb.AddForce(rb.velocity * somersaultForce, ForceMode.Impulse);
         }
     }
 
@@ -147,7 +162,7 @@ public class PlayerMovementController : MonoBehaviour
     {
 
         //limit speed on slope
-        if(OnSlope() && !exitingSlope)
+        if(OnSlope())
         {
             if(rb.velocity.magnitude > moveSpeed)
                 rb.velocity = rb.velocity.normalized * moveSpeed;
@@ -181,5 +196,10 @@ public class PlayerMovementController : MonoBehaviour
     private Vector3 GetSlopeMoveDirection()
     {
         return Vector3.ProjectOnPlane(moveDirection, slopeHit.normal).normalized;
+    }
+
+    private Vector3 GetSlopeSomersaultDirection()
+    {
+        return Vector3.ProjectOnPlane(rb.velocity, slopeHit.normal).normalized;
     }
 }
