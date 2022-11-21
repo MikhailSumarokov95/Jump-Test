@@ -8,7 +8,7 @@ public class PlayerMovementController : MonoBehaviour
     private float moveSpeed;
     public float walkSpeed;
     public float sprintSpeed;
-
+    [SerializeField] private float airMultiplier;
     public float groundDrag;
 
     [Header("Keybinds")]
@@ -18,13 +18,15 @@ public class PlayerMovementController : MonoBehaviour
     public float playerHeight;
     public LayerMask WhatIsGround;
     public bool grounded;
-
+    [SerializeField] private float maxSlopeAngle;
     public Transform orientation;
-
+    [SerializeField] private bool exitingSlope;
     float horizontalInput;
     float verticalInput;
 
     Vector3 moveDirection;
+    //private float startYScale;
+    private RaycastHit slopeHit;
 
     Rigidbody rb;
 
@@ -42,7 +44,7 @@ public class PlayerMovementController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
 
-        startYScale = transform.localScale.y;
+        //startYScale = transform.localScale.y;
     }
 
     // Update is called once per frame
