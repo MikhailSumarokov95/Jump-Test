@@ -10,19 +10,25 @@ public class PlayerMovementController : MonoBehaviour
     public float sprintSpeed;
     [SerializeField] private float airMultiplier;
     public float groundDrag;
+    [SerializeField] private float jumpForce;
 
     [Header("Keybinds")]
     public KeyCode sprintKey = KeyCode.LeftShift;
+    [SerializeField] private KeyCode jumpKey = KeyCode.Space;
 
     [Header("Ground Check")]
     public float playerHeight;
     public LayerMask WhatIsGround;
     public bool grounded;
-    [SerializeField] private float maxSlopeAngle;
+
     public Transform orientation;
+
+    [SerializeField] private float maxSlopeAngle;
     [SerializeField] private bool exitingSlope;
+
     float horizontalInput;
     float verticalInput;
+    private bool jumpInput;
 
     Vector3 moveDirection;
     //private float startYScale;
@@ -35,7 +41,8 @@ public class PlayerMovementController : MonoBehaviour
     public enum MovementState
     {
         walking,
-        sprinting
+        sprinting,
+        jump,
     }
 
     // Start is called before the first frame update
@@ -51,15 +58,19 @@ public class PlayerMovementController : MonoBehaviour
     private void Update()
     {
         // ground check
-        grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, WhatIsGround);
+        grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.3f, WhatIsGround);
 
         MyInput();
         SpeedControl();
         StateHandler();
+        Jump();
 
         //handle drag
         if(grounded) rb.drag = groundDrag;
         else rb.drag = 0;
+
+        print(state);
+        print(grounded);
     }
 
     private void FixedUpdate()
@@ -71,32 +82,36 @@ public class PlayerMovementController : MonoBehaviour
     {
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
+        jumpInput = Input.GetKeyDown(jumpKey);
     }
 
     private void StateHandler()
     {
         //Mode - Sprinting
-        if(grounded && Input.GetKey(sprintKey))
+        if (grounded && Input.GetKey(sprintKey))
         {
             state = MovementState.sprinting;
             moveSpeed = sprintSpeed;
         }
 
-        //Mode - walking
-        else if(grounded)
+        //Mode - Walking
+        else if (grounded)
         {
             state = MovementState.walking;
             moveSpeed = walkSpeed;
         }
+
+        //Mode - Jump
+        else state = MovementState.jump;
     }
 
     private void MovePlayer()
     {
         // calculate movement direction
         moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
-        
+
         //on slope
-        if(OnSlope() && !exitingSlope)
+        if (OnSlope() && !exitingSlope)
         {
             rb.AddForce(GetSlopeMoveDirection() * moveSpeed * 20f, ForceMode.Force);
 
@@ -105,7 +120,7 @@ public class PlayerMovementController : MonoBehaviour
         }
 
         //on ground
-        if(grounded)
+        else if(grounded)
         {
             rb.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
         }
@@ -118,6 +133,14 @@ public class PlayerMovementController : MonoBehaviour
 
         //turn gravity off while on slope
         rb.useGravity = !OnSlope();
+    }
+
+    private void Jump()
+    {
+        if (jumpInput && grounded)
+        {
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        }
     }
 
     private void SpeedControl()
