@@ -8,10 +8,12 @@ public class PlayerMovementController : MonoBehaviour
     private float moveSpeed;
     public float walkSpeed;
     public float sprintSpeed;
-    [SerializeField] private float airMultiplier;
     public float groundDrag;
+    [SerializeField] private float airMultiplier;
     [SerializeField] private float jumpForce;
     [SerializeField] private float somersaultForce;
+    [SerializeField] private float maxSlopeAngle;
+    private bool isStartedCoroutineSomersault;
 
     [Header("Keybinds")]
     public KeyCode sprintKey = KeyCode.LeftShift;
@@ -25,7 +27,7 @@ public class PlayerMovementController : MonoBehaviour
 
     public Transform orientation;
 
-    [SerializeField] private float maxSlopeAngle;
+    private Animator animator;
 
     float horizontalInput;
     float verticalInput;
@@ -36,11 +38,14 @@ public class PlayerMovementController : MonoBehaviour
     private RaycastHit slopeHit;
 
     Rigidbody rb;
+    private CapsuleCollider capsuleCollider;
 
     public MovementState state;
+    private MovementState actualState;
 
     public enum MovementState
     {
+        stay,
         walking,
         sprinting,
         jump,
@@ -52,19 +57,24 @@ public class PlayerMovementController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.freezeRotation = true;
+        capsuleCollider = GetComponent<CapsuleCollider>();
+        animator = GetComponent<Animator>();
+        moveSpeed = walkSpeed;
     }
 
     // Update is called once per frame
     private void Update()
     {
         // ground check
-        grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.3f, WhatIsGround);
+        grounded = Physics.Raycast(capsuleCollider.center + transform.position, Vector3.down,
+            capsuleCollider.height / 2 + 0.1f, WhatIsGround);
 
         MyInput();
         SpeedControl();
         StateHandler();
+        
         if (jumpInput) Jump();
-        if (somersaultInput) Somersault();
+        if (somersaultInput) StartCoroutine(Somersault());
 
         //handle drag
         if (grounded) rb.drag = groundDrag;
@@ -86,8 +96,17 @@ public class PlayerMovementController : MonoBehaviour
 
     private void StateHandler()
     {
+        //Mode = Somersault
+        if (somersaultInput || isStartedCoroutineSomersault) state = MovementState.somersault;
+
+        //Mode = jump
+        else if (!grounded) state = MovementState.jump;
+
+        //Mode - Stay
+        else if (rb.velocity.magnitude < 1f) state = MovementState.stay;
+
         //Mode - Sprinting
-        if (grounded && Input.GetKey(sprintKey))
+        else if (grounded && Input.GetKey(sprintKey))
         {
             state = MovementState.sprinting;
             moveSpeed = sprintSpeed;
@@ -100,8 +119,7 @@ public class PlayerMovementController : MonoBehaviour
             moveSpeed = walkSpeed;
         }
 
-        //Mode - Jump
-        else state = MovementState.jump;
+        ActivateAnimation(state);
     }
 
     private void MovePlayer()
@@ -139,22 +157,6 @@ public class PlayerMovementController : MonoBehaviour
         if (state != MovementState.jump && state != MovementState.somersault)
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-        }
-    }
-
-    private void Somersault()
-    {
-       
-        if (state == MovementState.jump || state == MovementState.somersault) return;
-
-        else if (OnSlope())
-        {
-            rb.AddForce(GetSlopeSomersaultDirection() * 20f * somersaultForce, ForceMode.Impulse);
-        }
-
-        else
-        {
-            rb.AddForce(rb.velocity * somersaultForce, ForceMode.Impulse);
         }
     }
 
@@ -198,8 +200,54 @@ public class PlayerMovementController : MonoBehaviour
         return Vector3.ProjectOnPlane(moveDirection, slopeHit.normal).normalized;
     }
 
-    private Vector3 GetSlopeSomersaultDirection()
+    private void ActivateAnimation(MovementState newState)
     {
-        return Vector3.ProjectOnPlane(rb.velocity, slopeHit.normal).normalized;
+        if (newState == actualState) return;
+        actualState = newState;
+        switch (newState)
+        {
+            case MovementState.stay:
+                animator.SetTrigger("OnStay");
+                break;
+            case MovementState.walking:
+                animator.SetTrigger("OnWalk");
+                animator.speed = 1f;
+                break;
+            case MovementState.sprinting:
+                animator.SetTrigger("OnWalk");
+                animator.speed = sprintSpeed / walkSpeed;
+                break;
+            case MovementState.jump:
+                animator.SetTrigger("OnJump");
+                break;
+            case MovementState.somersault:
+                animator.SetTrigger("OnSomersault");
+                break;
+        }
+    }
+
+    private IEnumerator Somersault()
+    {
+        if (state == MovementState.jump || isStartedCoroutineSomersault) yield break;
+
+        isStartedCoroutineSomersault = true;
+
+        var timerAnimation = 0f;
+        while (timerAnimation < 2f)
+        {
+            if (OnSlope())
+            {
+                var directionSomersaultOnSlope = Vector3.ProjectOnPlane(orientation.forward, slopeHit.normal).normalized;
+                rb.AddForce(directionSomersaultOnSlope * 20f * somersaultForce, ForceMode.Force);
+            }
+
+            else
+            {
+                rb.AddForce(orientation.forward * somersaultForce, ForceMode.Force);
+            }
+            timerAnimation += Time.deltaTime;
+            yield return null;
+        }
+        isStartedCoroutineSomersault = false;
     }
 }
