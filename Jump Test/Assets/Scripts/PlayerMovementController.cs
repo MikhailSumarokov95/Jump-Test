@@ -15,6 +15,10 @@ public class PlayerMovementController : MonoBehaviour
     [SerializeField] private float maxSlopeAngle;
     private bool isStartedCoroutineSomersault;
 
+    [Header("Rotation")]
+    [SerializeField] private float rotationSpeed;
+    private float rotationInput;
+
     [Header("Keybinds")]
     public KeyCode sprintKey = KeyCode.LeftShift;
     [SerializeField] private KeyCode jumpKey = KeyCode.Space;
@@ -72,7 +76,7 @@ public class PlayerMovementController : MonoBehaviour
         MyInput();
         SpeedControl();
         StateHandler();
-        
+        Rotate();
         if (jumpInput) Jump();
         if (somersaultInput) StartCoroutine(Somersault());
 
@@ -88,6 +92,7 @@ public class PlayerMovementController : MonoBehaviour
 
     private void MyInput()
     {
+        rotationInput = Input.GetAxis("Mouse X");
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
         jumpInput = Input.GetKeyDown(jumpKey);
@@ -158,6 +163,11 @@ public class PlayerMovementController : MonoBehaviour
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
         }
+    }
+
+    private void Rotate()
+    {
+        transform.Rotate(Vector3.up, rotationInput * rotationSpeed);
     }
 
     private void SpeedControl()
