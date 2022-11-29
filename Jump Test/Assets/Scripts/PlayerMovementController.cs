@@ -18,7 +18,6 @@ public class PlayerMovementController : MonoBehaviour
 
     [Header("Rotation")]
     [SerializeField] private float rotationSpeed;
-    private float rotationInput;
 
     [Header("Keybinds")]
     public KeyCode sprintKey = KeyCode.LeftShift;
@@ -76,7 +75,7 @@ public class PlayerMovementController : MonoBehaviour
 
         // ground check
         grounded = Physics.Raycast(capsuleCollider.center + transform.position, Vector3.down,
-            capsuleCollider.height / 2 + 0.2f, WhatIsGround);
+            capsuleCollider.height / 2 + 0.05f, WhatIsGround);
 
         MyInput();
         SpeedControl();
@@ -84,7 +83,6 @@ public class PlayerMovementController : MonoBehaviour
         if (jumpInput) Jump();
         if (somersaultInput) StartCoroutine(Somersault());
         MovePlayer();
-        //RotatePlayer();
 
         //handle drag
         if (grounded) rb.drag = groundDrag;
@@ -93,7 +91,6 @@ public class PlayerMovementController : MonoBehaviour
 
     private void MyInput()
     {
-        //rotationInput = Input.GetAxis("Mouse X");
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
         jumpInput = Input.GetKeyDown(jumpKey);
@@ -112,12 +109,6 @@ public class PlayerMovementController : MonoBehaviour
             if (!rb.useGravity) rb.useGravity = true;
         }
 
-        //Mode - Stay
-        else if (rb.velocity.magnitude < 1f)
-        {
-            state = MovementState.stay;
-        }
-
         //Mode - Sprinting
         else if (Input.GetKey(sprintKey) &&
             verticalInput > 0.01 && Mathf.Approximately(horizontalInput, 0))
@@ -127,7 +118,7 @@ public class PlayerMovementController : MonoBehaviour
         }
 
         //Mode - Walking
-        else
+        else if (!Mathf.Approximately(horizontalInput, 0) || !Mathf.Approximately(verticalInput, 0))
         {
             moveSpeed = walkSpeed;
             if (verticalInput > 0.01f)
@@ -138,6 +129,12 @@ public class PlayerMovementController : MonoBehaviour
                 state = MovementState.walkingRigth;
             else if (horizontalInput < -0.01f)
                 state = MovementState.walkingLeft;
+        }
+
+        //Mode - Stay
+        else
+        {
+            state = MovementState.stay;
         }
 
         ActivateAnimation(state);
@@ -182,19 +179,16 @@ public class PlayerMovementController : MonoBehaviour
         }
     }
 
-    //private void RotatePlayer()
-    //{
-    //    if (state == MovementState.jump || state == MovementState.somersault) return;
-    //    transform.Rotate(Vector3.up, rotationInput * rotationSpeed);
-    //}
-
     private void SpeedControl()
     {
+        if (jumpInput == true || state == MovementState.jump) return;
 
         //limit speed on slope
-        if(OnSlope())
+        if (OnSlope())
         {
-            if(rb.velocity.magnitude > moveSpeed)
+            print("speedControl");
+            print(jumpInput);
+            if (rb.velocity.magnitude > moveSpeed)
                 rb.velocity = rb.velocity.normalized * moveSpeed;
         }
 
@@ -204,7 +198,7 @@ public class PlayerMovementController : MonoBehaviour
             Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
 
             //limit velocity if needed
-            if(flatVel.magnitude > moveSpeed)
+            if (flatVel.magnitude > moveSpeed)
             {
                 Vector3 limitedVel = flatVel.normalized * moveSpeed;
                 rb.velocity = new Vector3(limitedVel.x, rb.velocity.y, limitedVel.z);
@@ -287,4 +281,14 @@ public class PlayerMovementController : MonoBehaviour
         }
         isStartedCoroutineSomersault = false;
     }
+
+    //public void OnCollisionEnter(Collision collision)
+    //{
+    //    if (collision.gameObject.CompareTag("Ground")) grounded = true;
+    //}
+
+    //public void OnCollisionExit(Collision collision)
+    //{
+    //    if (collision.gameObject.CompareTag("Ground")) grounded = false;
+    //}
 }
