@@ -430,7 +430,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _target: {fileID: 1156695437}
   damping: 3
-  offset: {x: 0, y: 4.7, z: -5.8}
+  offset: {x: 0, y: 2.25, z: -5.8}
 --- !u!1 &1057191581
 GameObject:
   m_ObjectHideFlags: 0
@@ -690,7 +690,7 @@ MonoBehaviour:
   airMultiplier: 0
   jumpForce: 10
   somersaultForce: 200
-  maxSlopeAngle: 10
+  maxSlopeAngle: 30
   rotationSpeed: 4
   sprintKey: 304
   jumpKey: 32
@@ -700,7 +700,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   grounded: 0
-  orientation: {fileID: 963194228}
+  orientation: {fileID: 1387375254}
   state: 0
 --- !u!54 &1387375251
 Rigidbody:

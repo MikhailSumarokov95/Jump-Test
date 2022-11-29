@@ -14,6 +14,7 @@ public class PlayerMovementController : MonoBehaviour
     [SerializeField] private float somersaultForce;
     [SerializeField] private float maxSlopeAngle;
     private bool isStartedCoroutineSomersault;
+    private float horizontalSpeedPlayers;
 
     [Header("Rotation")]
     [SerializeField] private float rotationSpeed;
@@ -50,7 +51,10 @@ public class PlayerMovementController : MonoBehaviour
     public enum MovementState
     {
         stay,
-        walking,
+        walkingForward,
+        walkingBack,
+        walkingRigth,
+        walkingLeft,
         sprinting,
         jump,
         somersault
@@ -69,25 +73,22 @@ public class PlayerMovementController : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
+
         // ground check
         grounded = Physics.Raycast(capsuleCollider.center + transform.position, Vector3.down,
-            capsuleCollider.height / 2 + 0.1f, WhatIsGround);
+            capsuleCollider.height / 2 + 0.2f, WhatIsGround);
 
         MyInput();
         SpeedControl();
         StateHandler();
-        Rotate();
         if (jumpInput) Jump();
         if (somersaultInput) StartCoroutine(Somersault());
+        MovePlayer();
+        RotatePlayer();
 
         //handle drag
         if (grounded) rb.drag = groundDrag;
         else rb.drag = 0;
-    }
-
-    private void FixedUpdate()
-    {
-        MovePlayer();
     }
 
     private void MyInput()
@@ -102,26 +103,41 @@ public class PlayerMovementController : MonoBehaviour
     private void StateHandler()
     {
         //Mode = Somersault
-        if (somersaultInput || isStartedCoroutineSomersault) state = MovementState.somersault;
+        if (isStartedCoroutineSomersault) state = MovementState.somersault;
 
         //Mode = jump
-        else if (!grounded) state = MovementState.jump;
+        else if (!grounded)
+        {
+            state = MovementState.jump;
+            if (!rb.useGravity) rb.useGravity = true;
+        }
 
         //Mode - Stay
-        else if (rb.velocity.magnitude < 1f) state = MovementState.stay;
+        else if (rb.velocity.magnitude < 1f)
+        {
+            state = MovementState.stay;
+        }
 
         //Mode - Sprinting
-        else if (grounded && Input.GetKey(sprintKey))
+        else if (Input.GetKey(sprintKey) &&
+            verticalInput > 0.01 && Mathf.Approximately(horizontalInput, 0))
         {
             state = MovementState.sprinting;
             moveSpeed = sprintSpeed;
         }
 
         //Mode - Walking
-        else if (grounded)
+        else
         {
-            state = MovementState.walking;
             moveSpeed = walkSpeed;
+            if (verticalInput > 0.01f)
+                state = MovementState.walkingForward;
+            else if (verticalInput < -0.01f)
+                state = MovementState.walkingBack;
+            else if (horizontalInput > 0.01f)
+                state = MovementState.walkingRigth;
+            else if (horizontalInput < -0.01f)
+                state = MovementState.walkingLeft;
         }
 
         ActivateAnimation(state);
@@ -129,6 +145,8 @@ public class PlayerMovementController : MonoBehaviour
 
     private void MovePlayer()
     {
+        if (state == MovementState.jump || state == MovementState.somersault) return;
+
         // calculate movement direction
         moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
 
@@ -136,9 +154,8 @@ public class PlayerMovementController : MonoBehaviour
         if (OnSlope())
         {
             rb.AddForce(GetSlopeMoveDirection() * moveSpeed * 20f, ForceMode.Force);
-
-            if(rb.velocity.y > 0)
-                rb.AddForce(Vector3.down * 80f, ForceMode.Force);
+            if (rb.velocity.y > 0)
+                rb.AddForce(Vector3.down * moveSpeed * 10f, ForceMode.Force);
         }
 
         //on ground
@@ -165,8 +182,9 @@ public class PlayerMovementController : MonoBehaviour
         }
     }
 
-    private void Rotate()
+    private void RotatePlayer()
     {
+        if (state == MovementState.jump || state == MovementState.somersault) return;
         transform.Rotate(Vector3.up, rotationInput * rotationSpeed);
     }
 
@@ -199,7 +217,7 @@ public class PlayerMovementController : MonoBehaviour
         if(Physics.Raycast(transform.position, Vector3.down, out slopeHit, playerHeight * 0.5f + 0.3f))
         {
             float angle = Vector3.Angle(Vector3.up, slopeHit.normal);
-            return angle < maxSlopeAngle && angle != 0;
+            return angle < maxSlopeAngle && !Mathf.Approximately(angle, 0);
         }
 
         return false;
@@ -212,6 +230,8 @@ public class PlayerMovementController : MonoBehaviour
 
     private void ActivateAnimation(MovementState newState)
     {
+        horizontalSpeedPlayers = new Vector2(rb.velocity.x, rb.velocity.z).sqrMagnitude;
+        animator.SetFloat("SpeedPlayers", horizontalSpeedPlayers);
         if (newState == actualState) return;
         actualState = newState;
         switch (newState)
@@ -219,13 +239,20 @@ public class PlayerMovementController : MonoBehaviour
             case MovementState.stay:
                 animator.SetTrigger("OnStay");
                 break;
-            case MovementState.walking:
-                animator.SetTrigger("OnWalk");
-                animator.speed = 1f;
+            case MovementState.walkingForward:
+                animator.SetTrigger("OnWalkForward");
                 break;
             case MovementState.sprinting:
-                animator.SetTrigger("OnWalk");
-                animator.speed = sprintSpeed / walkSpeed;
+                animator.SetTrigger("OnWalkForward");
+                break;            
+            case MovementState.walkingBack:
+                animator.SetTrigger("OnWalkBack");
+                break;            
+            case MovementState.walkingLeft:
+                animator.SetTrigger("OnWalkLeft");
+                break;            
+            case MovementState.walkingRigth:
+                animator.SetTrigger("OnWalkRigth");
                 break;
             case MovementState.jump:
                 animator.SetTrigger("OnJump");
@@ -241,14 +268,14 @@ public class PlayerMovementController : MonoBehaviour
         if (state == MovementState.jump || isStartedCoroutineSomersault) yield break;
 
         isStartedCoroutineSomersault = true;
-
+        var lengthAnimations = 2.533f;
         var timerAnimation = 0f;
-        while (timerAnimation < 2f)
+        while (timerAnimation < lengthAnimations)
         {
             if (OnSlope())
             {
                 var directionSomersaultOnSlope = Vector3.ProjectOnPlane(orientation.forward, slopeHit.normal).normalized;
-                rb.AddForce(directionSomersaultOnSlope * 20f * somersaultForce, ForceMode.Force);
+                rb.AddForce(directionSomersaultOnSlope * somersaultForce, ForceMode.Force);
             }
 
             else
