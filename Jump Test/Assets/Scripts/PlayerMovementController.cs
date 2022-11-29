@@ -84,7 +84,7 @@ public class PlayerMovementController : MonoBehaviour
         if (jumpInput) Jump();
         if (somersaultInput) StartCoroutine(Somersault());
         MovePlayer();
-        RotatePlayer();
+        //RotatePlayer();
 
         //handle drag
         if (grounded) rb.drag = groundDrag;
@@ -93,7 +93,7 @@ public class PlayerMovementController : MonoBehaviour
 
     private void MyInput()
     {
-        rotationInput = Input.GetAxis("Mouse X");
+        //rotationInput = Input.GetAxis("Mouse X");
         horizontalInput = Input.GetAxisRaw("Horizontal");
         verticalInput = Input.GetAxisRaw("Vertical");
         jumpInput = Input.GetKeyDown(jumpKey);
@@ -182,11 +182,11 @@ public class PlayerMovementController : MonoBehaviour
         }
     }
 
-    private void RotatePlayer()
-    {
-        if (state == MovementState.jump || state == MovementState.somersault) return;
-        transform.Rotate(Vector3.up, rotationInput * rotationSpeed);
-    }
+    //private void RotatePlayer()
+    //{
+    //    if (state == MovementState.jump || state == MovementState.somersault) return;
+    //    transform.Rotate(Vector3.up, rotationInput * rotationSpeed);
+    //}
 
     private void SpeedControl()
     {
